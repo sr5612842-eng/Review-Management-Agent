@@ -1,0 +1,75 @@
+Review,Sentiment,Category,Urgency,Issue,AI Response
+REAL CUSTOMER REVIEWS,Positive,Service,Low,No major issue,"Thank you so much for taking the time to leave such a positive review! We really appreciate your feedback, especially about [mention specific details from the review]. We strive to provide a positive and helpful experience for all our customers, and we're so glad we were able to do that for you."
+"Peter Cat, Park Street, Kolkata — collected from publicly available review pages",Positive,Service,Low,No major issue,"Thank you for taking the time to share your positive experience at Peter Cat! We're delighted to hear you enjoyed your visit, and we hope you had a wonderful time at our restaurant.  Your feedback means a lot to us and helps us continue to strive for excellence.  We look forward to welcoming you back again soon!"
+"Important: These are not AI-generated reviews. The entries below are short excerpts from publicly available customer reviews, kept brief and",Positive,Service,Low,No major issue,Thank you for taking the time to share your positive experience with our team! We're delighted you've had such a positive interaction with [mention specific staff member or department]. We strive to provide excellent service to every customer and appreciate your feedback.
+linked to their original review pages. They are suitable as a test dataset for your AI customer-review agent.,Positive,Service,Low,No major issue,"Thanks for your positive feedback! We're glad you found our service helpful. It's great to hear you appreciate the resources for testing our AI customer-review agent.  We're always working to improve, and your feedback is valuable to us."
+Customer review excerpt,Positive,Other,Low,No major issue,Please provide the customer review excerpt so I can write a personalized response. 😊
+There was a long queue at the door and we had to wait for,Neutral,Service,Low,Long queue at the door,"We're so sorry to hear about the long wait you experienced at the door. We understand that waiting can be frustrating, and we'll be sure to share your feedback with the team to see if there are ways to improve our service."
+around 30 minutes to enter.,Neutral,Service,Low,Time to entry is a bit slow.,"We appreciate you letting us know about your experience! We understand it took a little longer than expected to enter the facility.  We're always working to improve our process, and we'll take your feedback into consideration. We hope you enjoyed the rest of your visit."
+Tripadvisor Peter Cat reviews,Positive,Service,Low,No major issue,Thank you for the positive review of Peter Cat! We're so happy to hear you had a good experience with our team. We appreciate your feedback and will use it to continue improving our service.
+"The food was so-so, not even close to what I remembered from",Neutral,Product,Low,"The food did not meet the customer's expectations, implying a disparity in quality compared to previous experiences.","Thank you for letting us know about your recent experience. We're sorry to hear the food didn't meet your expectations. We strive to provide consistent quality, and we're especially interested in learning more about what you didn't enjoy."
+Tripadvisor Peter Cat reviews,Positive,Service,Low,No major issue,"Dear [Customer Name],
+
+Thank you so much for your kind review of Peter Cat! We appreciate you taking the time to share your positive experience. 
+
+We're delighted to hear you enjoyed your visit.  We strive to make each customer feel welcome, and we're happy to hear we succeeded.
+
+Sincerely,
+
+[Your Name]
+Customer Service Manager"
+"Peter Cat is a 5* star experience. The food was flavorful,",Positive,Product,Low,No major issue,Thank you for sharing your positive experience with Peter Cat! We're so glad you enjoyed the flavors of our food. We strive to make each visit special and we appreciate you letting us know about your positive experience.  We look forward to serving you again soon.
+"exciting to eat, and authentic to Kolkata.",Positive,Service,Low,No major issue,"Thank you so much for sharing your positive feedback! We're thrilled to hear you enjoyed the authentic experience of Kolkata dishes at our restaurant.  We're dedicated to providing you with the best possible dining experience, and your words encourage us to continue striving for excellence."
+Tripadvisor Peter Cat reviews,Positive,Service,Low,No major issue,Thank you for taking the time to share your recent experience at Peter Cat! We're so glad you enjoyed your meal and found our service to be satisfactory. We appreciate your feedback and are always looking for ways to improve our offerings.  We're happy to hear you enjoyed your time with us.
+Peter cat is my most favorite restaurant in kolkata city.... chello,Positive,Other,Low,No major issue,"Dear Peter,
+
+Thank you for your kind words about Peter Cat!  It's wonderful to hear you love it so much.  We're always working hard to create a special experience for our guests. 
+
+We appreciate your continued support.  
+
+Best regards,
+
+[Your Name] 
+Customer Service Manager"
+kebab ... both are awesome.,Positive,Product,Low,No major issue,"Thanks for the kind words about our kebabs! It's great to hear you enjoyed your experience. 😊  
+ 
+If you have any more feedback or ideas for how we can improve, please don't hesitate to let us know!"
+Tripadvisor Peter Cat reviews,Positive,Service,Low,No major issue,"Dear [Customer name], 
+
+Thank you for your kind review of Peter Cat! We're so glad you enjoyed your experience with us.  It sounds like you had a positive evening, and we appreciate you taking the time to share your thoughts. 
+
+Sincerely, 
+[Your Name] 
+Customer Service Manager"
+Food was very good staff was awesome.,Positive,Service,Low,No major issue,Thank you so much for the wonderful review! We're thrilled to hear you enjoyed the food and found our staff to be awesome. We appreciate your feedback and it means a lot to us. We hope to see you again soon!
+Zomato Peter Cat reviews,Positive,Other,Low,No major issue,"Thank you for your kind review of Peter Cat! We're delighted to hear you enjoyed your experience. We always strive to provide a positive dining experience, and we appreciate your feedback."
+The food was amazing but the service was horrible!,Positive,Product,Low,No major issue,We're so glad to hear you enjoyed the food! We're also sorry to hear your service experience wasn't up to par. Could you please tell us a little more about what you felt didn't meet expectations so we can learn and improve?
+Zomato Peter Cat reviews,Positive,Service,Low,No major issue,"Thank you for your lovely review of Peter Cat!  We're so glad you enjoyed your recent dining experience.  It sounds like everything went smoothly for you, and we appreciate you taking the time to share your feedback. We're always working to improve, so your comments are helpful to us."
+food test not too good,Negative,Product,Low,The food did not meet expectations.,"We're sorry to hear your food test didn't meet your expectations.  We strive to provide delicious experiences for all our customers, and we'd appreciate it if you'd let us know what specifically didn't meet your standards. We'll use this feedback to improve our offerings."
+Zomato Peter Cat reviews,Positive,Service,Low,No major issue,"Thank you for your kind review of Peter Cat! We're so glad you enjoyed your recent experience. We're always striving to provide top-notch service, so your feedback is invaluable to us. We appreciate your continued support!"
+"The Chelo Kabab and Sizzlers still hold that signature,",Positive,Product,Low,No major issue,"Thank you for your thoughtful review! We're glad you enjoyed the Chelo Kabab and Sizzlers, and we appreciate you acknowledging the signature flavor.  It sounds like you had a positive experience.  We strive to provide delicious and satisfying meals to each and every customer."
+mouthwatering taste.,Positive,Quality,Low,No major issue,Thank you so much for taking the time to leave such a kind review! We're delighted you enjoyed the mouthwatering taste of [product name].  We appreciate your feedback.
+Zomato Peter Cat reviews,Positive,Service,Low,No major issue,"Dear [Customer Name],
+
+Thank you for sharing your positive feedback about your recent experience at Peter Cat. We appreciate you taking the time to leave a review. We are glad you enjoyed your meal and service. We strive to create a welcoming and enjoyable dining experience for every guest. 
+
+
+Sincerely,
+
+[Your Name] 
+Customer Service Manager"
+food was cold item was chelo kebab platter,Neutral,Product,Low,The food was cold.,"Thank you for letting us know your Chelo Kebab platter arrived cold. We apologize for this inconvenience and understand your frustration.  We strive for delicious and timely food service, and we appreciate you bringing this to our attention so we can look into what happened."
+Zomato Peter Cat reviews,Positive,Service,Low,No major issue,Thank you for your kind review of Peter Cat! We're glad you enjoyed your experience.  We appreciate you taking the time to share your feedback.  Please don't hesitate to reach out if there's anything else we can help with.
+Wait time for food was longer than to be seated.,Neutral,Service,Low,The wait time for food was longer than the time it took to be seated.,"Hi [Customer Name], thanks for letting us know about your experience. We understand that the wait time for your food was longer than expected, and we apologize for any inconvenience this may have caused. We strive to provide a positive dining experience for all our guests, and we appreciate you bringing this to our attention."
+Zomato Peter Cat reviews,Positive,Other,Low,No major issue,Thank you for taking the time to leave your kind review about your recent visit to Peter Cat. We're so glad you enjoyed your experience! We always strive to provide our guests with a welcoming atmosphere and delicious food.
+Sources for verification,Positive,Service,Low,No major issue,Thank you for sharing your feedback!  I'm glad to hear you found the information helpful.  We appreciate you reaching out and providing feedback on your experience. Let me know if there's anything else I can help you with.
+" Tripadvisor: Peter Cat, Kolkata — 2,572 reviews. Search result includes the June 2026, April 2026, November 2025 and May 2026 reviews",Positive,Service,Low,No major issue,"Dear [Customer Name],
+
+Thank you for taking the time to share your positive feedback about your recent experience at Peter Cat. We appreciate your feedback and are glad to hear you enjoyed your visit. We strive to deliver excellent service to all our guests. 
+
+Sincerely,
+[Your Name] 
+Customer Service Manager"
+" Zomato: Peter Cat, Park Street Area, Kolkata — review page with recent dining reviews and ratings.",Positive,Other,Low,No major issue,"Thank you for your kind words about your recent experience at Peter Cat, Park Street Area! We're so glad you enjoyed your meal and found our service helpful.  We strive to create a welcoming and pleasant atmosphere for all our guests.  If you have any feedback or suggestions on how we can improve, we'd love to hear from you."
+"For your project, you can feed the review excerpts into the agent and ask it to classify sentiment, detect issues, identify urgent complaints, draft",Positive,Service,Low,No major issue,"Thank you for taking the time to share your feedback! We appreciate your positive review regarding your recent experience with [project name]. We're happy to hear your experience was positive.  If you have any further questions or concerns, please don't hesitate to reach out. We're here to help!"
+"responses, and find recurring problems.",Positive,Other,Low,No major issue,"Thank you for the positive feedback! It's great to hear that you had a positive experience.  We appreciate you taking the time to share your thoughts.  If you ever have any other questions or concerns, please don't hesitate to reach out. We're always here to help."

@@ -1,0 +1,131 @@
+review_id,customer,platform,rating,review,sentiment,category,urgency,issue,ai_response
+1,Amit,Google,5,Amazing food and excellent service. The staff was very friendly.,Unknown,Other,Unknown,"```json
+{
+    ""sentiment"": ""Positive"",
+    ""category"": ""Service"",
+    ""urgency"": ""Low"",
+    ""issue"": null
+}
+``` 
+","Dear [Customer Name],
+
+Thank you so much for your kind words! We're so happy you enjoyed your experience with us, and that our staff was able to provide excellent service. We strive to make every customer feel valued, and it's wonderful to hear we achieved that for you. 
+
+We appreciate you taking the time to share your feedback.  
+
+Sincerely,
+
+[Your Name] 
+Customer Service Manager 
+"
+2,Riya,Google,2,The food was cold when it arrived and delivery took more than an hour.,Unknown,Other,Unknown,"```json
+{
+    ""sentiment"": ""Negative"",
+    ""category"": ""Delivery"",
+    ""urgency"": ""High"",
+    ""issue"": ""Cold food and delayed delivery"" 
+}
+``` 
+","Dear [Customer Name],
+
+We're so sorry to hear that your recent order was delivered cold and that the delivery took longer than expected. We strive to ensure a positive customer experience, and we regret falling short on this occasion.  
+
+We're investigating why the food wasn't properly heated upon arrival and why the delivery time exceeded the usual timeframe. We'd appreciate the chance to learn more and ensure this doesn't happen again.
+
+Sincerely, 
+[Your Name] 
+Customer Service Manager 
+"
+3,Rahul,Tripadvisor,1,Very bad experience. Nobody responded to my complaint and the staff was rude.,Unknown,Other,Unknown,"```json
+{
+    ""sentiment"": ""Negative"",
+    ""category"": ""Service/Staff"",
+    ""urgency"": ""High"",
+    ""issue"": ""Customer reported a negative experience due to lack of response to complaints and rude staff interaction."" 
+}
+```","Dear [Customer Name], 
+
+Thank you for taking the time to share your feedback. I am truly sorry to hear you had a negative experience with our staff and lack of response to your complaint. We strive for excellent customer service, and it's disappointing to hear we fell short. 
+
+Please know we take your feedback seriously, and we'll be investigating to understand how we can improve.  We value your business and appreciate the opportunity to make things right. 
+
+Sincerely,
+[Your Name] 
+Customer Service Manager 
+"
+4,Sneha,Facebook,4,Good food and reasonable prices. Delivery was slightly late.,Unknown,Other,Unknown,"```json
+{
+    ""sentiment"": ""Positive"",
+    ""category"": ""Delivery"",
+    ""urgency"": ""Medium"",
+    ""issue"": ""Delivery was slightly late""
+}
+``` 
+","Thank you for taking the time to leave a review! We're glad you enjoyed the food and appreciated the value.  We understand that the delivery time was a little longer than expected, and we apologize for the delay. We strive to provide timely service, and we'll use this feedback to improve our delivery processes. 
+"
+5,Arnab,Google,2,The food was cold again. This is the second time this has happened.,Unknown,Other,Unknown,"```json
+{
+    ""sentiment"": ""Negative"",
+    ""category"": ""Product"",
+    ""urgency"": ""Medium"",
+    ""issue"": ""Food was cold again.""
+}
+``` 
+","Dear [Customer name],
+
+Thank you for bringing this to our attention. We sincerely apologize that your food was cold again, and we understand your frustration. We strive to provide a positive dining experience, and we're disappointed to hear this happened. 
+
+Please feel free to reach out to us directly at [phone number] or [email address] so we can address this further. We'd be happy to discuss this further and make things right. 
+
+Sincerely, 
+[Your Name] 
+Customer Service Manager 
+"
+6,Priya,Facebook,5,Excellent service! I really enjoyed the food.,Unknown,Other,Unknown,"```json
+{
+    ""sentiment"": ""Positive"",
+    ""category"": ""Product"",
+    ""urgency"": ""Low"",
+    ""issue"": null
+}
+``` 
+","Thank you so much for taking the time to share your positive experience! We're thrilled you enjoyed our food.  
+
+We're committed to providing excellent service, and we appreciate you letting us know how we did.  
+"
+7,Neha,Google,1,Terrible service. My order was missing items and nobody helped me.,Unknown,Other,Unknown,"```json
+{
+    ""sentiment"": ""Negative"",
+    ""category"": ""Service"",
+    ""urgency"": ""High"",
+    ""issue"": ""Missing items from order and lack of assistance from staff.""
+}
+``` 
+","Dear [Customer Name], 
+
+Thank you for bringing your recent experience to our attention. I am truly sorry to hear that your order was missing items and you weren't able to get help. We strive to provide our customers with a positive experience, and I apologize if we fell short.
+
+I would like to investigate this issue further and get things corrected for you. Please send me a direct message with your order number, and we'll get this sorted out as quickly as possible. 
+
+
+Sincerely,
+[Your Name] 
+Customer Service Manager 
+"
+8,Karan,Tripadvisor,3,Food was okay but the price is quite high.,Unknown,Other,Unknown,"```json
+{
+    ""sentiment"": ""Neutral"",
+    ""category"": ""Price"",
+    ""urgency"": ""Low"",
+    ""issue"": ""Price is considered too high for the quality of food.""
+}
+``` 
+","Dear [Customer Name],
+
+Thank you for sharing your feedback about your recent dining experience.  We're always looking to improve, and we understand that the price point may not align with what you expected. We strive to offer the best quality for our dishes, and your feedback is valuable to us as we continue to work on finding the right balance. We hope you'll give us another opportunity to show you our commitment to excellence.  
+
+
+Sincerely,
+[Your Name]
+Customer Service Manager 
+"
