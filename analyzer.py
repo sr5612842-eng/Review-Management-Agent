@@ -1,6 +1,6 @@
 import json
 import streamlit as st
-from huggingface_hub import InferenceClient
+from groq import Groq
 
 
 def analyze_review(review):
@@ -13,7 +13,7 @@ Analyze the following customer review.
 Review:
 "{review}"
 
-Return ONLY valid JSON using this exact structure:
+Return ONLY valid JSON using exactly this structure:
 
 {{
     "sentiment": "Positive/Neutral/Negative",
@@ -23,13 +23,12 @@ Return ONLY valid JSON using this exact structure:
 }}
 """
 
-    client = InferenceClient(
-        api_key=st.secrets["HF_TOKEN"],
-        provider="auto"
+    client = Groq(
+        api_key=st.secrets["GROQ_API_KEY"]
     )
 
     response = client.chat.completions.create(
-        model="deepseek-ai/DeepSeek-V3-0324",
+        model="llama-3.3-70b-versatile",
         messages=[
             {
                 "role": "system",
