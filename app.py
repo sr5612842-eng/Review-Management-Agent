@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
+from datetime import datetime
 from groq import Groq
 
 
@@ -12,15 +13,97 @@ from groq import Groq
 st.set_page_config(
     page_title="AI Review Management Agent",
     page_icon="⭐",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
+
+
+# ============================================================
+# CUSTOM CSS
+# ============================================================
+
+st.markdown("""
+<style>
+
+.main {
+    padding-top: 1rem;
+}
+
+.hero {
+    padding: 25px;
+    border-radius: 18px;
+    background: linear-gradient(
+        135deg,
+        rgba(70, 90, 120, 0.35),
+        rgba(30, 35, 45, 0.65)
+    );
+    margin-bottom: 25px;
+}
+
+.hero h1 {
+    font-size: 42px;
+    margin-bottom: 8px;
+}
+
+.hero p {
+    font-size: 18px;
+    opacity: 0.85;
+}
+
+.card {
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid rgba(128,128,128,0.25);
+    margin-bottom: 15px;
+}
+
+.success-card {
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid rgba(50,180,100,0.4);
+    background: rgba(50,180,100,0.08);
+}
+
+.warning-card {
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid rgba(240,180,50,0.4);
+    background: rgba(240,180,50,0.08);
+}
+
+.reply-box {
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid rgba(100,140,255,0.35);
+    background: rgba(100,140,255,0.08);
+    font-size: 17px;
+    line-height: 1.6;
+}
+
+.small-text {
+    font-size: 13px;
+    opacity: 0.7;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+
+# ============================================================
+# CONSTANTS
+# ============================================================
+
+MODEL_NAME = "openai/gpt-oss-20b"
+CSV_FILE = "analyzed_reviews.csv"
 
 
 # ============================================================
 # GROQ CLIENT
 # ============================================================
 
+@st.cache_resource
 def get_groq_client():
+
     return Groq(
         api_key=st.secrets["GROQ_API_KEY"]
     )
@@ -33,15 +116,16 @@ def get_groq_client():
 def analyze_review(review):
 
     prompt = f"""
-You are an AI customer review analyst for a small business.
+You are an expert customer review analyst for a small business.
 
-Analyze this customer review:
+Analyze the customer review below.
 
+CUSTOMER REVIEW:
 "{review}"
 
-Return ONLY valid JSON.
+Return ONLY a JSON object.
 
-Use exactly this structure:
+The JSON MUST have exactly these fields:
 
 {{
     "sentiment": "Positive/Neutral/Negative",
@@ -51,10 +135,32 @@ Use exactly this structure:
 }}
 
 Rules:
-- Sentiment must be Positive, Neutral, or Negative.
-- Category must be Service, Product, Delivery, Staff, Price, Quality, or Other.
-- Urgency must be Low, Medium, or High.
-- Issue must be short and clear.
+
+1. sentiment:
+   - Positive
+   - Neutral
+   - Negative
+
+2. category:
+   - Service
+   - Product
+   - Delivery
+   - Staff
+   - Price
+   - Quality
+   - Other
+
+3. urgency:
+   - Low
+   - Medium
+   - High
+
+4. issue:
+   - Keep it short.
+   - Clearly describe the main complaint or positive point.
+
+Do not include markdown.
+Do not include explanations outside JSON.
 """
 
     try:
@@ -62,13 +168,13 @@ Rules:
         client = get_groq_client()
 
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=MODEL_NAME,
             messages=[
                 {
                     "role": "system",
                     "content": (
-                        "You are a customer review analysis AI. "
-                        "Return valid JSON only."
+                        "You analyze customer reviews and return "
+                        "structured JSON only."
                     )
                 },
                 {
@@ -76,15 +182,13 @@ Rules:
                     "content": prompt
                 }
             ],
-            temperature=0
+            temperature=0,
+            response_format={
+                "type": "json_object"
+            }
         )
 
-        result = response.choices[0].message.content.strip()
-
-        # Remove markdown if model adds it
-        result = result.replace("```json", "")
-        result = result.replace("```", "")
-        result = result.strip()
+        result = response.choices[0].message.content
 
         return json.loads(result)
 
@@ -94,57 +198,69 @@ Rules:
             "sentiment": "Unknown",
             "category": "Other",
             "urgency": "Unknown",
-            "issue": f"Analysis error: {str(e)}"
+            "issue": f"AI analysis error: {str(e)}"
         }
 
 
 # ============================================================
-# GENERATE AI CUSTOMER REPLY
+# GENERATE AI RESPONSE
 # ============================================================
 
 def generate_response(review, analysis):
 
     prompt = f"""
-You are a professional customer service representative.
+You are a professional customer service manager.
 
-Write a personalized response to this customer review.
+Write a high-quality response to the customer's review.
 
 CUSTOMER REVIEW:
 "{review}"
 
 ANALYSIS:
-Sentiment: {analysis.get("sentiment", "Unknown")}
-Category: {analysis.get("category", "Other")}
-Urgency: {analysis.get("urgency", "Unknown")}
-Issue: {analysis.get("issue", "None")}
 
-Instructions:
+Sentiment:
+{analysis.get("sentiment", "Unknown")}
 
-1. If the review is positive:
-   - Thank the customer.
-   - Appreciate their feedback.
-   - Keep the tone warm and friendly.
+Category:
+{analysis.get("category", "Other")}
 
-2. If the review is negative:
-   - Apologize for the problem.
-   - Acknowledge the customer's concern.
-   - Say that the business will look into the issue.
-   - Be professional and empathetic.
+Urgency:
+{analysis.get("urgency", "Unknown")}
 
-3. If the review is neutral:
-   - Thank the customer.
-   - Address their feedback professionally.
+Main Issue:
+{analysis.get("issue", "None")}
 
-4. Do NOT:
-   - Mention AI.
-   - Invent refunds.
-   - Invent discounts.
-   - Invent company policies.
-   - Make promises you cannot verify.
+RESPONSE RULES:
 
-5. Keep the reply between 40 and 80 words.
+For positive reviews:
+- Thank the customer.
+- Show appreciation.
+- Mention something specific from their review when possible.
+- Keep the tone warm.
 
-Return ONLY the customer-facing response.
+For negative reviews:
+- Apologize sincerely.
+- Acknowledge the specific problem.
+- Show empathy.
+- State that the business will look into the issue.
+- Avoid defensive language.
+
+For neutral reviews:
+- Thank the customer.
+- Acknowledge their feedback.
+- Respond professionally.
+
+IMPORTANT:
+- Never mention AI.
+- Never invent refunds.
+- Never invent discounts.
+- Never invent company policies.
+- Never make promises that are not supported by the review.
+- Do not repeat the entire review.
+- Do not use hashtags.
+- Do not use excessive emojis.
+- Keep the response between 50 and 100 words.
+- Return ONLY the customer-facing response.
 """
 
     try:
@@ -152,13 +268,13 @@ Return ONLY the customer-facing response.
         client = get_groq_client()
 
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=MODEL_NAME,
             messages=[
                 {
                     "role": "system",
                     "content": (
-                        "You are a professional and empathetic "
-                        "customer service representative."
+                        "You are an experienced, empathetic and "
+                        "professional customer service representative."
                     )
                 },
                 {
@@ -182,57 +298,116 @@ Return ONLY the customer-facing response.
 
 def save_review(review, analysis, ai_response):
 
-    file_name = "analyzed_reviews.csv"
-
     new_review = pd.DataFrame([
         {
+            "Date": datetime.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
             "Review": review,
-            "Sentiment": analysis.get("sentiment", ""),
-            "Category": analysis.get("category", ""),
-            "Urgency": analysis.get("urgency", ""),
-            "Issue": analysis.get("issue", ""),
+            "Sentiment": analysis.get(
+                "sentiment",
+                "Unknown"
+            ),
+            "Category": analysis.get(
+                "category",
+                "Other"
+            ),
+            "Urgency": analysis.get(
+                "urgency",
+                "Unknown"
+            ),
+            "Issue": analysis.get(
+                "issue",
+                ""
+            ),
             "AI Response": ai_response
         }
     ])
 
     try:
 
-        if os.path.exists(file_name):
+        if os.path.exists(CSV_FILE):
 
-            old_reviews = pd.read_csv(file_name)
+            old_data = pd.read_csv(CSV_FILE)
 
-            all_reviews = pd.concat(
-                [old_reviews, new_review],
+            all_data = pd.concat(
+                [old_data, new_review],
                 ignore_index=True
-            )
-
-            all_reviews.to_csv(
-                file_name,
-                index=False
             )
 
         else:
 
-            new_review.to_csv(
-                file_name,
-                index=False
-            )
+            all_data = new_review
 
-    except Exception:
-        pass
+        all_data.to_csv(
+            CSV_FILE,
+            index=False
+        )
+
+    except Exception as e:
+
+        st.warning(
+            f"Could not save review history: {e}"
+        )
+
+
+# ============================================================
+# SENTIMENT ICON
+# ============================================================
+
+def sentiment_icon(sentiment):
+
+    sentiment = str(sentiment).lower()
+
+    if sentiment == "positive":
+        return "😊"
+
+    if sentiment == "negative":
+        return "😟"
+
+    if sentiment == "neutral":
+        return "😐"
+
+    return "❓"
+
+
+# ============================================================
+# URGENCY ICON
+# ============================================================
+
+def urgency_icon(urgency):
+
+    urgency = str(urgency).lower()
+
+    if urgency == "high":
+        return "🚨"
+
+    if urgency == "medium":
+        return "⚠️"
+
+    if urgency == "low":
+        return "🟢"
+
+    return "❓"
 
 
 # ============================================================
 # HEADER
 # ============================================================
 
-st.title("⭐ AI Review Management Agent")
+st.markdown("""
+<div class="hero">
 
-st.write(
-    "An AI-powered tool that analyzes customer reviews, "
-    "detects important issues, identifies urgency, and "
-    "generates professional customer responses."
-)
+<h1>⭐ AI Review Management Agent</h1>
+
+<p>
+Turn customer reviews into actionable business intelligence.
+Analyze sentiment, detect issues, identify urgent complaints,
+and generate professional responses automatically.
+</p>
+
+</div>
+""", unsafe_allow_html=True)
 
 
 # ============================================================
@@ -244,38 +419,52 @@ with st.sidebar:
     st.header("🤖 AI Review Agent")
 
     st.write(
-        "This system helps small businesses manage customer "
-        "reviews quickly and professionally."
+        "Your intelligent assistant for managing customer feedback."
     )
 
     st.divider()
 
-    st.write("### AI Features")
+    st.subheader("✨ Features")
 
-    st.write("✅ Sentiment Analysis")
-    st.write("✅ Review Categorization")
-    st.write("✅ Urgency Detection")
-    st.write("✅ Issue Detection")
-    st.write("✅ AI Response Generation")
+    st.write("😊 Sentiment Analysis")
+    st.write("📂 Review Categorization")
+    st.write("🚨 Urgency Detection")
+    st.write("🔎 Issue Identification")
+    st.write("💬 AI Response Generation")
+    st.write("📊 Review History")
+    st.write("📈 Business Insights")
 
     st.divider()
 
-    st.caption("Powered by Groq AI")
+    st.caption(
+        "AI Model: GPT-OSS 20B"
+    )
+
+    st.caption(
+        "Powered by Groq"
+    )
 
 
 # ============================================================
 # REVIEW INPUT
 # ============================================================
 
-st.header("📝 Customer Review")
+st.header("📝 Analyze a Customer Review")
+
+st.write(
+    "Enter a customer review and let the AI analyze it."
+)
 
 review = st.text_area(
-    "Enter a customer review below:",
+    "Customer Review",
     placeholder=(
-        "Example: The food was excellent, but my delivery "
-        "was two hours late and customer service did not respond."
+        "Example:\n\n"
+        "The food was delicious, but my order arrived two hours "
+        "late. I tried contacting customer service several times "
+        "but nobody responded."
     ),
-    height=180
+    height=180,
+    label_visibility="visible"
 )
 
 
@@ -297,26 +486,29 @@ if st.button(
 
     else:
 
+        # Save current review
+        st.session_state["review"] = review
+
         # ----------------------------------------------------
-        # STEP 1: ANALYZE REVIEW
+        # ANALYSIS
         # ----------------------------------------------------
 
         with st.spinner(
-            "🤖 AI is analyzing the customer review..."
+            "🤖 Analyzing customer review..."
         ):
 
-            analysis = analyze_review(review)
+            analysis = analyze_review(
+                review
+            )
 
-        # Save analysis in session
-        st.session_state["review"] = review
         st.session_state["analysis"] = analysis
 
         # ----------------------------------------------------
-        # STEP 2: GENERATE CUSTOMER RESPONSE
+        # RESPONSE
         # ----------------------------------------------------
 
         with st.spinner(
-            "✍️ AI is generating a customer response..."
+            "✍️ Generating personalized customer response..."
         ):
 
             ai_response = generate_response(
@@ -327,7 +519,7 @@ if st.button(
         st.session_state["ai_response"] = ai_response
 
         # ----------------------------------------------------
-        # STEP 3: SAVE
+        # SAVE
         # ----------------------------------------------------
 
         save_review(
@@ -336,13 +528,11 @@ if st.button(
             ai_response
         )
 
-        st.success(
-            "✅ Review analyzed and AI response generated!"
-        )
+        st.session_state["just_analyzed"] = True
 
 
 # ============================================================
-# ANALYSIS RESULTS
+# RESULTS
 # ============================================================
 
 if "analysis" in st.session_state:
@@ -351,43 +541,48 @@ if "analysis" in st.session_state:
 
     st.divider()
 
-    st.header("📊 AI Analysis")
-
+    st.header("📊 Review Analysis")
 
     # --------------------------------------------------------
     # METRICS
     # --------------------------------------------------------
+
+    sentiment = analysis.get(
+        "sentiment",
+        "Unknown"
+    )
+
+    category = analysis.get(
+        "category",
+        "Other"
+    )
+
+    urgency = analysis.get(
+        "urgency",
+        "Unknown"
+    )
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
 
         st.metric(
-            "😊 Sentiment",
-            analysis.get(
-                "sentiment",
-                "Unknown"
-            )
+            "Sentiment",
+            f"{sentiment_icon(sentiment)} {sentiment}"
         )
 
     with col2:
 
         st.metric(
-            "📂 Category",
-            analysis.get(
-                "category",
-                "Other"
-            )
+            "Category",
+            f"📂 {category}"
         )
 
     with col3:
 
         st.metric(
-            "🚨 Urgency",
-            analysis.get(
-                "urgency",
-                "Unknown"
-            )
+            "Urgency",
+            f"{urgency_icon(urgency)} {urgency}"
         )
 
 
@@ -397,57 +592,204 @@ if "analysis" in st.session_state:
 
     st.subheader("🔎 Main Issue")
 
-    st.info(
-        analysis.get(
-            "issue",
-            "No issue detected."
+    issue = analysis.get(
+        "issue",
+        "No issue identified."
+    )
+
+    if urgency.lower() == "high":
+
+        st.error(
+            f"🚨 High-priority issue: {issue}"
         )
-    )
+
+    elif urgency.lower() == "medium":
+
+        st.warning(
+            f"⚠️ Issue requiring attention: {issue}"
+        )
+
+    else:
+
+        st.info(
+            issue
+        )
+
+
+    # --------------------------------------------------------
+    # AI RESPONSE
+    # --------------------------------------------------------
+
+    if "ai_response" in st.session_state:
+
+        st.divider()
+
+        st.header("💬 AI Generated Reply")
+
+        st.write(
+            "Here is a personalized response that your "
+            "business can send to the customer:"
+        )
+
+        ai_response = st.session_state[
+            "ai_response"
+        ]
+
+        st.markdown(
+            f"""
+            <div class="reply-box">
+            {ai_response}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        st.text_area(
+            "Copyable Response",
+            value=ai_response,
+            height=150
+        )
 
 
 # ============================================================
-# AI GENERATED RESPONSE
-# ============================================================
-
-if "ai_response" in st.session_state:
-
-    st.divider()
-
-    st.header("💬 AI Generated Reply")
-
-    st.write(
-        "Suggested response to the customer:"
-    )
-
-    st.text_area(
-        "Customer Response",
-        value=st.session_state["ai_response"],
-        height=180,
-        label_visibility="collapsed"
-    )
-
-    st.success(
-        "✅ Response generated successfully."
-    )
-
-
-# ============================================================
-# REVIEW HISTORY
+# DASHBOARD
 # ============================================================
 
 st.divider()
 
-st.header("📚 Review History")
+st.header("📈 Business Review Dashboard")
 
-file_name = "analyzed_reviews.csv"
 
-if os.path.exists(file_name):
+if os.path.exists(CSV_FILE):
 
     try:
 
-        history = pd.read_csv(file_name)
+        history = pd.read_csv(
+            CSV_FILE
+        )
 
         if not history.empty:
+
+            # ------------------------------------------------
+            # TOP METRICS
+            # ------------------------------------------------
+
+            total_reviews = len(
+                history
+            )
+
+            positive_count = (
+                history["Sentiment"]
+                .astype(str)
+                .str.lower()
+                .eq("positive")
+                .sum()
+            )
+
+            negative_count = (
+                history["Sentiment"]
+                .astype(str)
+                .str.lower()
+                .eq("negative")
+                .sum()
+            )
+
+            high_urgency = (
+                history["Urgency"]
+                .astype(str)
+                .str.lower()
+                .eq("high")
+                .sum()
+            )
+
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+
+                st.metric(
+                    "📋 Total Reviews",
+                    total_reviews
+                )
+
+            with col2:
+
+                st.metric(
+                    "😊 Positive",
+                    int(positive_count)
+                )
+
+            with col3:
+
+                st.metric(
+                    "😟 Negative",
+                    int(negative_count)
+                )
+
+            with col4:
+
+                st.metric(
+                    "🚨 High Urgency",
+                    int(high_urgency)
+                )
+
+
+            # ------------------------------------------------
+            # CHARTS
+            # ------------------------------------------------
+
+            st.subheader(
+                "📊 Sentiment Distribution"
+            )
+
+            sentiment_counts = (
+                history["Sentiment"]
+                .value_counts()
+            )
+
+            st.bar_chart(
+                sentiment_counts
+            )
+
+
+            st.subheader(
+                "📂 Review Categories"
+            )
+
+            category_counts = (
+                history["Category"]
+                .value_counts()
+            )
+
+            st.bar_chart(
+                category_counts
+            )
+
+
+            # ------------------------------------------------
+            # URGENCY
+            # ------------------------------------------------
+
+            st.subheader(
+                "🚨 Urgency Distribution"
+            )
+
+            urgency_counts = (
+                history["Urgency"]
+                .value_counts()
+            )
+
+            st.bar_chart(
+                urgency_counts
+            )
+
+
+            # ------------------------------------------------
+            # HISTORY
+            # ------------------------------------------------
+
+            st.subheader(
+                "📚 Review History"
+            )
 
             st.dataframe(
                 history,
@@ -455,71 +797,40 @@ if os.path.exists(file_name):
                 hide_index=True
             )
 
+
             # ------------------------------------------------
-            # STATISTICS
+            # DOWNLOAD
             # ------------------------------------------------
 
-            st.subheader("📈 Review Statistics")
+            csv_data = history.to_csv(
+                index=False
+            )
 
-            col1, col2, col3 = st.columns(3)
-
-            with col1:
-
-                st.metric(
-                    "Total Reviews",
-                    len(history)
-                )
-
-            with col2:
-
-                if "Sentiment" in history.columns:
-
-                    negative_reviews = (
-                        history["Sentiment"]
-                        .astype(str)
-                        .str.lower()
-                        .eq("negative")
-                        .sum()
-                    )
-
-                    st.metric(
-                        "Negative Reviews",
-                        int(negative_reviews)
-                    )
-
-            with col3:
-
-                if "Urgency" in history.columns:
-
-                    high_urgency = (
-                        history["Urgency"]
-                        .astype(str)
-                        .str.lower()
-                        .eq("high")
-                        .sum()
-                    )
-
-                    st.metric(
-                        "High Urgency",
-                        int(high_urgency)
-                    )
+            st.download_button(
+                label="⬇️ Download Review Report",
+                data=csv_data,
+                file_name="review_analysis_report.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
 
         else:
 
             st.info(
-                "No reviews analyzed yet."
+                "No reviews have been analyzed yet."
             )
 
     except Exception as e:
 
         st.warning(
-            "Unable to load review history."
+            f"Could not load dashboard data: {e}"
         )
 
 else:
 
     st.info(
-        "No review history yet. Analyze your first review above."
+        "📊 Your dashboard will appear here after "
+        "you analyze your first review."
     )
 
 
@@ -529,7 +840,17 @@ else:
 
 st.divider()
 
-st.caption(
-    "⭐ AI Review Management Agent | "
-    "Sentiment • Category • Urgency • AI Response"
+st.markdown(
+    """
+<div style="text-align:center; opacity:0.7;">
+
+⭐ <b>AI Review Management Agent</b>
+
+<p>
+Analyze • Understand • Respond • Improve
+</p>
+
+</div>
+""",
+    unsafe_allow_html=True
 )
