@@ -1,5 +1,6 @@
-import ollama
 import json
+import streamlit as st
+from huggingface_hub import InferenceClient
 
 
 def analyze_review(review):
@@ -22,20 +23,31 @@ Return ONLY valid JSON using this exact structure:
 }}
 """
 
-    response = ollama.chat(
-        model="gemma2:2b",
+    client = InferenceClient(
+        api_key=st.secrets["HF_TOKEN"],
+        provider="auto"
+    )
+
+    response = client.chat.completions.create(
+        model="deepseek-ai/DeepSeek-V3-0324",
         messages=[
+            {
+                "role": "system",
+                "content": "You are a customer review analysis AI. Always return valid JSON."
+            },
             {
                 "role": "user",
                 "content": prompt
             }
-        ]
+        ],
+        temperature=0
     )
 
-    result = response["message"]["content"]
+    result = response.choices[0].message.content
 
     try:
         return json.loads(result)
+
     except json.JSONDecodeError:
         return {
             "sentiment": "Unknown",
