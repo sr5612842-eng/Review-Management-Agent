@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import json
 import os
+import io
+import re
 from datetime import datetime
 from groq import Groq
 
@@ -19,29 +21,34 @@ st.set_page_config(
 
 
 # ============================================================
+# SETTINGS
+# ============================================================
+
+MODEL_NAME = "openai/gpt-oss-20b"
+CSV_FILE = "analyzed_reviews.csv"
+
+
+# ============================================================
 # CUSTOM CSS
 # ============================================================
 
 st.markdown("""
 <style>
 
-.main {
-    padding-top: 1rem;
-}
-
 .hero {
-    padding: 25px;
-    border-radius: 18px;
+    padding: 30px;
+    border-radius: 20px;
+    margin-bottom: 25px;
+    border: 1px solid rgba(128,128,128,0.25);
     background: linear-gradient(
         135deg,
-        rgba(70, 90, 120, 0.35),
-        rgba(30, 35, 45, 0.65)
+        rgba(70,90,120,0.35),
+        rgba(30,35,45,0.65)
     );
-    margin-bottom: 25px;
 }
 
 .hero h1 {
-    font-size: 42px;
+    font-size: 44px;
     margin-bottom: 8px;
 }
 
@@ -50,51 +57,24 @@ st.markdown("""
     opacity: 0.85;
 }
 
-.card {
+.section-card {
     padding: 20px;
-    border-radius: 15px;
+    border-radius: 16px;
     border: 1px solid rgba(128,128,128,0.25);
     margin-bottom: 15px;
 }
 
-.success-card {
-    padding: 20px;
-    border-radius: 15px;
-    border: 1px solid rgba(50,180,100,0.4);
-    background: rgba(50,180,100,0.08);
-}
-
-.warning-card {
-    padding: 20px;
-    border-radius: 15px;
-    border: 1px solid rgba(240,180,50,0.4);
-    background: rgba(240,180,50,0.08);
-}
-
 .reply-box {
     padding: 20px;
-    border-radius: 15px;
+    border-radius: 16px;
     border: 1px solid rgba(100,140,255,0.35);
     background: rgba(100,140,255,0.08);
     font-size: 17px;
     line-height: 1.6;
 }
 
-.small-text {
-    font-size: 13px;
-    opacity: 0.7;
-}
-
 </style>
 """, unsafe_allow_html=True)
-
-
-# ============================================================
-# CONSTANTS
-# ============================================================
-
-MODEL_NAME = "openai/gpt-oss-20b"
-CSV_FILE = "analyzed_reviews.csv"
 
 
 # ============================================================
@@ -110,7 +90,43 @@ def get_groq_client():
 
 
 # ============================================================
-# ANALYZE REVIEW
+# SAFE JSON PARSER
+# ============================================================
+
+def parse_json_response(text):
+
+    text = text.strip()
+
+    text = text.replace("```json", "")
+    text = text.replace("```", "")
+    text = text.strip()
+
+    try:
+        return json.loads(text)
+
+    except Exception:
+
+        match = re.search(
+            r'\{.*\}',
+            text,
+            re.DOTALL
+        )
+
+        if match:
+
+            try:
+                return json.loads(
+                    match.group(0)
+                )
+
+            except Exception:
+                pass
+
+    return None
+
+
+# ============================================================
+# SINGLE REVIEW ANALYSIS
 # ============================================================
 
 def analyze_review(review):
@@ -118,49 +134,35 @@ def analyze_review(review):
     prompt = f"""
 You are an expert customer review analyst for a small business.
 
-Analyze the customer review below.
+Analyze this customer review:
 
-CUSTOMER REVIEW:
 "{review}"
 
-Return ONLY a JSON object.
-
-The JSON MUST have exactly these fields:
+Return ONLY valid JSON using exactly this structure:
 
 {{
     "sentiment": "Positive/Neutral/Negative",
     "category": "Service/Product/Delivery/Staff/Price/Quality/Other",
     "urgency": "Low/Medium/High",
-    "issue": "short description of the main issue"
+    "quality_score": 0,
+    "issue": "short description of the main issue",
+    "solution": "specific practical solution for the business",
+    "strengths": "what the business did well",
+    "weaknesses": "what the business needs to improve"
 }}
 
-Rules:
+Quality score must be between 0 and 100.
 
-1. sentiment:
-   - Positive
-   - Neutral
-   - Negative
+Consider:
+- customer satisfaction
+- product/service quality
+- staff behavior
+- delivery
+- value for money
+- clarity of complaint
+- overall customer experience
 
-2. category:
-   - Service
-   - Product
-   - Delivery
-   - Staff
-   - Price
-   - Quality
-   - Other
-
-3. urgency:
-   - Low
-   - Medium
-   - High
-
-4. issue:
-   - Keep it short.
-   - Clearly describe the main complaint or positive point.
-
-Do not include markdown.
-Do not include explanations outside JSON.
+Return JSON only.
 """
 
     try:
@@ -173,8 +175,8 @@ Do not include explanations outside JSON.
                 {
                     "role": "system",
                     "content": (
-                        "You analyze customer reviews and return "
-                        "structured JSON only."
+                        "You are a professional review analyst. "
+                        "Return valid JSON only."
                     )
                 },
                 {
@@ -190,7 +192,21 @@ Do not include explanations outside JSON.
 
         result = response.choices[0].message.content
 
-        return json.loads(result)
+        parsed = parse_json_response(result)
+
+        if parsed:
+            return parsed
+
+        return {
+            "sentiment": "Unknown",
+            "category": "Other",
+            "urgency": "Unknown",
+            "quality_score": 0,
+            "issue": "Could not parse AI response.",
+            "solution": "Review the complaint manually.",
+            "strengths": "",
+            "weaknesses": ""
+        }
 
     except Exception as e:
 
@@ -198,12 +214,16 @@ Do not include explanations outside JSON.
             "sentiment": "Unknown",
             "category": "Other",
             "urgency": "Unknown",
-            "issue": f"AI analysis error: {str(e)}"
+            "quality_score": 0,
+            "issue": f"AI error: {str(e)}",
+            "solution": "Check the AI connection.",
+            "strengths": "",
+            "weaknesses": ""
         }
 
 
 # ============================================================
-# GENERATE AI RESPONSE
+# GENERATE CUSTOMER RESPONSE
 # ============================================================
 
 def generate_response(review, analysis):
@@ -211,55 +231,29 @@ def generate_response(review, analysis):
     prompt = f"""
 You are a professional customer service manager.
 
-Write a high-quality response to the customer's review.
+Write a personalized response to this customer.
 
 CUSTOMER REVIEW:
 "{review}"
 
 ANALYSIS:
+Sentiment: {analysis.get("sentiment")}
+Category: {analysis.get("category")}
+Urgency: {analysis.get("urgency")}
+Issue: {analysis.get("issue")}
+Solution: {analysis.get("solution")}
 
-Sentiment:
-{analysis.get("sentiment", "Unknown")}
+Rules:
 
-Category:
-{analysis.get("category", "Other")}
-
-Urgency:
-{analysis.get("urgency", "Unknown")}
-
-Main Issue:
-{analysis.get("issue", "None")}
-
-RESPONSE RULES:
-
-For positive reviews:
-- Thank the customer.
-- Show appreciation.
-- Mention something specific from their review when possible.
-- Keep the tone warm.
-
-For negative reviews:
-- Apologize sincerely.
+- Thank positive customers.
+- Apologize appropriately to unhappy customers.
 - Acknowledge the specific problem.
-- Show empathy.
-- State that the business will look into the issue.
-- Avoid defensive language.
-
-For neutral reviews:
-- Thank the customer.
-- Acknowledge their feedback.
-- Respond professionally.
-
-IMPORTANT:
-- Never mention AI.
-- Never invent refunds.
-- Never invent discounts.
-- Never invent company policies.
-- Never make promises that are not supported by the review.
-- Do not repeat the entire review.
-- Do not use hashtags.
-- Do not use excessive emojis.
-- Keep the response between 50 and 100 words.
+- Be empathetic and professional.
+- Do not invent refunds or discounts.
+- Do not invent company policies.
+- Do not mention AI.
+- Do not make unsupported promises.
+- Keep the reply between 50 and 100 words.
 - Return ONLY the customer-facing response.
 """
 
@@ -273,8 +267,8 @@ IMPORTANT:
                 {
                     "role": "system",
                     "content": (
-                        "You are an experienced, empathetic and "
-                        "professional customer service representative."
+                        "You are an experienced and empathetic "
+                        "customer service representative."
                     )
                 },
                 {
@@ -289,21 +283,38 @@ IMPORTANT:
 
     except Exception as e:
 
-        return f"Unable to generate AI reply: {str(e)}"
+        return f"Unable to generate reply: {str(e)}"
 
 
 # ============================================================
-# SAVE REVIEW
+# BULK REVIEW ANALYSIS
 # ============================================================
 
-def save_review(review, analysis, ai_response):
+def analyze_bulk_reviews(reviews):
 
-    new_review = pd.DataFrame([
-        {
-            "Date": datetime.now().strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "Review": review,
+    results = []
+
+    progress = st.progress(0)
+    status = st.empty()
+
+    total = len(reviews)
+
+    for i, review in enumerate(reviews):
+
+        status.write(
+            f"🤖 Analyzing review {i + 1} of {total}..."
+        )
+
+        if not str(review).strip():
+
+            continue
+
+        analysis = analyze_review(
+            str(review)
+        )
+
+        results.append({
+            "Review": str(review),
             "Sentiment": analysis.get(
                 "sentiment",
                 "Unknown"
@@ -316,79 +327,304 @@ def save_review(review, analysis, ai_response):
                 "urgency",
                 "Unknown"
             ),
-            "Issue": analysis.get(
+            "Quality Score": analysis.get(
+                "quality_score",
+                0
+            ),
+            "Main Issue": analysis.get(
                 "issue",
                 ""
             ),
-            "AI Response": ai_response
-        }
-    ])
+            "Solution": analysis.get(
+                "solution",
+                ""
+            ),
+            "Strengths": analysis.get(
+                "strengths",
+                ""
+            ),
+            "Weaknesses": analysis.get(
+                "weaknesses",
+                ""
+            )
+        })
+
+        progress.progress(
+            (i + 1) / total
+        )
+
+    status.success(
+        f"✅ Finished analyzing {len(results)} reviews."
+    )
+
+    return pd.DataFrame(results)
+
+
+# ============================================================
+# BUSINESS INSIGHTS
+# ============================================================
+
+def generate_business_insights(df):
+
+    sample = df[
+        [
+            "Sentiment",
+            "Category",
+            "Urgency",
+            "Quality Score",
+            "Main Issue",
+            "Solution",
+            "Strengths",
+            "Weaknesses"
+        ]
+    ].to_dict(
+        orient="records"
+    )
+
+    prompt = f"""
+You are a senior business consultant.
+
+Analyze these customer review results:
+
+{json.dumps(sample, indent=2)}
+
+Provide business-level insights.
+
+Return ONLY valid JSON:
+
+{{
+    "overall_assessment": "short overall assessment",
+    "top_problem": "most important recurring problem",
+    "top_strength": "most important business strength",
+    "priority_action": "most important action the business should take",
+    "recommendations": [
+        "recommendation 1",
+        "recommendation 2",
+        "recommendation 3",
+        "recommendation 4",
+        "recommendation 5"
+    ]
+}}
+
+Focus on practical actions a small business can actually implement.
+"""
 
     try:
 
-        if os.path.exists(CSV_FILE):
+        client = get_groq_client()
 
-            old_data = pd.read_csv(CSV_FILE)
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a business intelligence consultant. "
+                        "Return JSON only."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.2,
+            response_format={
+                "type": "json_object"
+            }
+        )
 
-            all_data = pd.concat(
-                [old_data, new_review],
-                ignore_index=True
+        result = parse_json_response(
+            response.choices[0].message.content
+        )
+
+        return result
+
+    except Exception as e:
+
+        return {
+            "overall_assessment": str(e),
+            "top_problem": "Unable to determine",
+            "top_strength": "Unable to determine",
+            "priority_action": "Check AI connection",
+            "recommendations": []
+        }
+
+
+# ============================================================
+# READ UPLOADED FILE
+# ============================================================
+
+def read_uploaded_file(uploaded_file):
+
+    file_name = uploaded_file.name.lower()
+
+    try:
+
+        # ----------------------------------------------------
+        # CSV
+        # ----------------------------------------------------
+
+        if file_name.endswith(".csv"):
+
+            return pd.read_csv(
+                uploaded_file
             )
+
+
+        # ----------------------------------------------------
+        # EXCEL
+        # ----------------------------------------------------
+
+        elif file_name.endswith(
+            (".xlsx", ".xls")
+        ):
+
+            return pd.read_excel(
+                uploaded_file
+            )
+
+
+        # ----------------------------------------------------
+        # TXT
+        # ----------------------------------------------------
+
+        elif file_name.endswith(".txt"):
+
+            content = uploaded_file.read()
+
+            text = content.decode(
+                "utf-8",
+                errors="ignore"
+            )
+
+            reviews = [
+                line.strip()
+                for line in text.splitlines()
+                if line.strip()
+            ]
+
+            return pd.DataFrame({
+                "Review": reviews
+            })
+
+
+        # ----------------------------------------------------
+        # PDF
+        # ----------------------------------------------------
+
+        elif file_name.endswith(".pdf"):
+
+            from pypdf import PdfReader
+
+            reader = PdfReader(
+                uploaded_file
+            )
+
+            text = ""
+
+            for page in reader.pages:
+
+                page_text = page.extract_text()
+
+                if page_text:
+                    text += page_text + "\n"
+
+            lines = [
+                line.strip()
+                for line in text.splitlines()
+                if line.strip()
+            ]
+
+            return pd.DataFrame({
+                "Review": lines
+            })
+
 
         else:
 
-            all_data = new_review
+            st.error(
+                "Unsupported file type."
+            )
 
-        all_data.to_csv(
+            return None
+
+    except Exception as e:
+
+        st.error(
+            f"Could not read file: {e}"
+        )
+
+        return None
+
+
+# ============================================================
+# FIND REVIEW COLUMN
+# ============================================================
+
+def find_review_column(df):
+
+    possible_names = [
+        "review",
+        "reviews",
+        "customer review",
+        "customer reviews",
+        "feedback",
+        "comment",
+        "comments",
+        "text",
+        "review text",
+        "feedback text"
+    ]
+
+    columns = list(df.columns)
+
+    for column in columns:
+
+        clean = str(column).strip().lower()
+
+        if clean in possible_names:
+
+            return column
+
+    # Find the column with the most text
+    best_column = None
+    best_score = 0
+
+    for column in columns:
+
+        try:
+
+            values = df[column].astype(str)
+
+            score = values.str.len().mean()
+
+            if score > best_score:
+
+                best_score = score
+                best_column = column
+
+        except Exception:
+            pass
+
+    return best_column
+
+
+# ============================================================
+# SAVE DATA
+# ============================================================
+
+def save_dataframe(df):
+
+    try:
+
+        df.to_csv(
             CSV_FILE,
             index=False
         )
 
-    except Exception as e:
-
-        st.warning(
-            f"Could not save review history: {e}"
-        )
-
-
-# ============================================================
-# SENTIMENT ICON
-# ============================================================
-
-def sentiment_icon(sentiment):
-
-    sentiment = str(sentiment).lower()
-
-    if sentiment == "positive":
-        return "😊"
-
-    if sentiment == "negative":
-        return "😟"
-
-    if sentiment == "neutral":
-        return "😐"
-
-    return "❓"
-
-
-# ============================================================
-# URGENCY ICON
-# ============================================================
-
-def urgency_icon(urgency):
-
-    urgency = str(urgency).lower()
-
-    if urgency == "high":
-        return "🚨"
-
-    if urgency == "medium":
-        return "⚠️"
-
-    if urgency == "low":
-        return "🟢"
-
-    return "❓"
+    except Exception:
+        pass
 
 
 # ============================================================
@@ -401,9 +637,10 @@ st.markdown("""
 <h1>⭐ AI Review Management Agent</h1>
 
 <p>
-Turn customer reviews into actionable business intelligence.
-Analyze sentiment, detect issues, identify urgent complaints,
-and generate professional responses automatically.
+Transform customer reviews into business intelligence.
+Analyze individual reviews or upload hundreds of reviews
+to discover problems, solutions, customer satisfaction,
+and actionable business insights.
 </p>
 
 </div>
@@ -419,7 +656,7 @@ with st.sidebar:
     st.header("🤖 AI Review Agent")
 
     st.write(
-        "Your intelligent assistant for managing customer feedback."
+        "Your intelligent assistant for customer feedback."
     )
 
     st.divider()
@@ -427,12 +664,15 @@ with st.sidebar:
     st.subheader("✨ Features")
 
     st.write("😊 Sentiment Analysis")
-    st.write("📂 Review Categorization")
+    st.write("⭐ Review Quality Score")
+    st.write("📂 Category Detection")
     st.write("🚨 Urgency Detection")
-    st.write("🔎 Issue Identification")
-    st.write("💬 AI Response Generation")
-    st.write("📊 Review History")
-    st.write("📈 Business Insights")
+    st.write("🔎 Issue Detection")
+    st.write("💡 Solution Recommendations")
+    st.write("💬 AI Customer Replies")
+    st.write("📊 Bulk Review Analysis")
+    st.write("🔥 Recurring Problem Detection")
+    st.write("📈 Business Intelligence")
 
     st.divider()
 
@@ -446,248 +686,377 @@ with st.sidebar:
 
 
 # ============================================================
-# REVIEW INPUT
+# TABS
 # ============================================================
 
-st.header("📝 Analyze a Customer Review")
-
-st.write(
-    "Enter a customer review and let the AI analyze it."
-)
-
-review = st.text_area(
-    "Customer Review",
-    placeholder=(
-        "Example:\n\n"
-        "The food was delicious, but my order arrived two hours "
-        "late. I tried contacting customer service several times "
-        "but nobody responded."
-    ),
-    height=180,
-    label_visibility="visible"
-)
+tab1, tab2, tab3 = st.tabs([
+    "📝 Single Review",
+    "📁 Upload Reviews",
+    "📊 Business Dashboard"
+])
 
 
 # ============================================================
-# ANALYZE BUTTON
+# TAB 1 - SINGLE REVIEW
 # ============================================================
 
-if st.button(
-    "🔍 Analyze Review",
-    type="primary",
-    use_container_width=True
-):
+with tab1:
 
-    if not review.strip():
+    st.header(
+        "📝 Analyze Individual Review"
+    )
 
-        st.warning(
-            "⚠️ Please enter a customer review first."
-        )
+    review = st.text_area(
+        "Customer Review",
+        placeholder=(
+            "Example:\n\n"
+            "The food was delicious, but my delivery was "
+            "two hours late. Customer service did not respond."
+        ),
+        height=180
+    )
 
-    else:
+    if st.button(
+        "🔍 Analyze Review",
+        type="primary",
+        use_container_width=True
+    ):
 
-        # Save current review
-        st.session_state["review"] = review
+        if not review.strip():
 
-        # ----------------------------------------------------
-        # ANALYSIS
-        # ----------------------------------------------------
-
-        with st.spinner(
-            "🤖 Analyzing customer review..."
-        ):
-
-            analysis = analyze_review(
-                review
+            st.warning(
+                "Please enter a review."
             )
 
-        st.session_state["analysis"] = analysis
+        else:
 
-        # ----------------------------------------------------
-        # RESPONSE
-        # ----------------------------------------------------
+            with st.spinner(
+                "🤖 Analyzing review..."
+            ):
 
-        with st.spinner(
-            "✍️ Generating personalized customer response..."
-        ):
+                analysis = analyze_review(
+                    review
+                )
 
-            ai_response = generate_response(
-                review,
-                analysis
-            )
+            st.session_state[
+                "single_analysis"
+            ] = analysis
 
-        st.session_state["ai_response"] = ai_response
+            with st.spinner(
+                "✍️ Generating customer reply..."
+            ):
 
-        # ----------------------------------------------------
-        # SAVE
-        # ----------------------------------------------------
+                reply = generate_response(
+                    review,
+                    analysis
+                )
 
-        save_review(
-            review,
-            analysis,
-            ai_response
-        )
-
-        st.session_state["just_analyzed"] = True
-
-
-# ============================================================
-# RESULTS
-# ============================================================
-
-if "analysis" in st.session_state:
-
-    analysis = st.session_state["analysis"]
-
-    st.divider()
-
-    st.header("📊 Review Analysis")
-
-    # --------------------------------------------------------
-    # METRICS
-    # --------------------------------------------------------
-
-    sentiment = analysis.get(
-        "sentiment",
-        "Unknown"
-    )
-
-    category = analysis.get(
-        "category",
-        "Other"
-    )
-
-    urgency = analysis.get(
-        "urgency",
-        "Unknown"
-    )
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-
-        st.metric(
-            "Sentiment",
-            f"{sentiment_icon(sentiment)} {sentiment}"
-        )
-
-    with col2:
-
-        st.metric(
-            "Category",
-            f"📂 {category}"
-        )
-
-    with col3:
-
-        st.metric(
-            "Urgency",
-            f"{urgency_icon(urgency)} {urgency}"
-        )
+            st.session_state[
+                "single_reply"
+            ] = reply
 
 
     # --------------------------------------------------------
-    # ISSUE
+    # RESULTS
     # --------------------------------------------------------
 
-    st.subheader("🔎 Main Issue")
+    if "single_analysis" in st.session_state:
 
-    issue = analysis.get(
-        "issue",
-        "No issue identified."
-    )
-
-    if urgency.lower() == "high":
-
-        st.error(
-            f"🚨 High-priority issue: {issue}"
-        )
-
-    elif urgency.lower() == "medium":
-
-        st.warning(
-            f"⚠️ Issue requiring attention: {issue}"
-        )
-
-    else:
-
-        st.info(
-            issue
-        )
-
-
-    # --------------------------------------------------------
-    # AI RESPONSE
-    # --------------------------------------------------------
-
-    if "ai_response" in st.session_state:
+        analysis = st.session_state[
+            "single_analysis"
+        ]
 
         st.divider()
 
-        st.header("💬 AI Generated Reply")
-
-        st.write(
-            "Here is a personalized response that your "
-            "business can send to the customer:"
+        st.subheader(
+            "📊 Review Intelligence"
         )
 
-        ai_response = st.session_state[
-            "ai_response"
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+
+            st.metric(
+                "Sentiment",
+                analysis.get(
+                    "sentiment",
+                    "Unknown"
+                )
+            )
+
+        with col2:
+
+            st.metric(
+                "Category",
+                analysis.get(
+                    "category",
+                    "Other"
+                )
+            )
+
+        with col3:
+
+            st.metric(
+                "Urgency",
+                analysis.get(
+                    "urgency",
+                    "Unknown"
+                )
+            )
+
+        with col4:
+
+            score = analysis.get(
+                "quality_score",
+                0
+            )
+
+            st.metric(
+                "⭐ Quality",
+                f"{score}/100"
+            )
+
+
+        st.subheader(
+            "🔎 Main Issue"
+        )
+
+        st.info(
+            analysis.get(
+                "issue",
+                "No issue detected."
+            )
+        )
+
+
+        st.subheader(
+            "💡 Recommended Solution"
+        )
+
+        st.success(
+            analysis.get(
+                "solution",
+                "No solution generated."
+            )
+        )
+
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            st.subheader(
+                "💪 Strengths"
+            )
+
+            st.write(
+                analysis.get(
+                    "strengths",
+                    "None identified."
+                )
+            )
+
+        with col2:
+
+            st.subheader(
+                "⚠️ Weaknesses"
+            )
+
+            st.write(
+                analysis.get(
+                    "weaknesses",
+                    "None identified."
+                )
+            )
+
+
+        if "single_reply" in st.session_state:
+
+            st.divider()
+
+            st.subheader(
+                "💬 AI Generated Customer Reply"
+            )
+
+            st.text_area(
+                "Suggested Response",
+                value=st.session_state[
+                    "single_reply"
+                ],
+                height=160
+            )
+
+
+# ============================================================
+# TAB 2 - BULK UPLOAD
+# ============================================================
+
+with tab2:
+
+    st.header(
+        "📁 Upload Customer Reviews"
+    )
+
+    st.write(
+        "Upload a CSV, Excel, TXT, or PDF file containing "
+        "customer reviews."
+    )
+
+    uploaded_file = st.file_uploader(
+        "Upload your review file",
+        type=[
+            "csv",
+            "xlsx",
+            "xls",
+            "txt",
+            "pdf"
+        ]
+    )
+
+
+    if uploaded_file:
+
+        st.success(
+            f"📄 File uploaded: {uploaded_file.name}"
+        )
+
+        df = read_uploaded_file(
+            uploaded_file
+        )
+
+        if df is not None and not df.empty:
+
+            st.subheader(
+                "👀 Uploaded Data"
+            )
+
+            st.dataframe(
+                df.head(10),
+                use_container_width=True,
+                hide_index=True
+            )
+
+
+            # ------------------------------------------------
+            # FIND REVIEW COLUMN
+            # ------------------------------------------------
+
+            review_column = find_review_column(
+                df
+            )
+
+            if review_column:
+
+                st.success(
+                    f"✅ Review column detected: "
+                    f"`{review_column}`"
+                )
+
+                reviews = (
+                    df[review_column]
+                    .dropna()
+                    .astype(str)
+                    .tolist()
+                )
+
+                st.write(
+                    f"📋 **{len(reviews)} reviews detected**"
+                )
+
+
+                # ------------------------------------------------
+                # LIMIT
+                # ------------------------------------------------
+
+                max_reviews = st.number_input(
+                    "Maximum reviews to analyze",
+                    min_value=1,
+                    max_value=len(reviews),
+                    value=min(
+                        20,
+                        len(reviews)
+                    ),
+                    step=1
+                )
+
+                reviews_to_analyze = reviews[
+                    :int(max_reviews)
+                ]
+
+
+                # ------------------------------------------------
+                # ANALYZE BULK
+                # ------------------------------------------------
+
+                if st.button(
+                    "🚀 Analyze All Reviews",
+                    type="primary",
+                    use_container_width=True
+                ):
+
+                    with st.spinner(
+                        "Starting bulk review intelligence..."
+                    ):
+
+                        bulk_results = analyze_bulk_reviews(
+                            reviews_to_analyze
+                        )
+
+                    st.session_state[
+                        "bulk_results"
+                    ] = bulk_results
+
+                    # Business insights
+                    if not bulk_results.empty:
+
+                        with st.spinner(
+                            "🧠 Generating business insights..."
+                        ):
+
+                            insights = generate_business_insights(
+                                bulk_results
+                            )
+
+                        st.session_state[
+                            "business_insights"
+                        ] = insights
+
+
+    # ========================================================
+    # DISPLAY BULK RESULTS
+    # ========================================================
+
+    if "bulk_results" in st.session_state:
+
+        results = st.session_state[
+            "bulk_results"
         ]
 
-        st.markdown(
-            f"""
-            <div class="reply-box">
-            {ai_response}
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        if not results.empty:
 
-        st.text_area(
-            "Copyable Response",
-            value=ai_response,
-            height=150
-        )
+            st.divider()
 
+            st.header(
+                "📊 Bulk Review Intelligence"
+            )
 
-# ============================================================
-# DASHBOARD
-# ============================================================
-
-st.divider()
-
-st.header("📈 Business Review Dashboard")
-
-
-if os.path.exists(CSV_FILE):
-
-    try:
-
-        history = pd.read_csv(
-            CSV_FILE
-        )
-
-        if not history.empty:
 
             # ------------------------------------------------
             # TOP METRICS
             # ------------------------------------------------
 
-            total_reviews = len(
-                history
-            )
+            total = len(results)
 
-            positive_count = (
-                history["Sentiment"]
+            positive = (
+                results["Sentiment"]
                 .astype(str)
                 .str.lower()
                 .eq("positive")
                 .sum()
             )
 
-            negative_count = (
-                history["Sentiment"]
+            negative = (
+                results["Sentiment"]
                 .astype(str)
                 .str.lower()
                 .eq("negative")
@@ -695,54 +1064,97 @@ if os.path.exists(CSV_FILE):
             )
 
             high_urgency = (
-                history["Urgency"]
+                results["Urgency"]
                 .astype(str)
                 .str.lower()
                 .eq("high")
                 .sum()
             )
 
+            average_quality = pd.to_numeric(
+                results["Quality Score"],
+                errors="coerce"
+            ).mean()
+
+
             col1, col2, col3, col4 = st.columns(4)
 
             with col1:
 
                 st.metric(
-                    "📋 Total Reviews",
-                    total_reviews
+                    "📋 Reviews",
+                    total
                 )
 
             with col2:
 
                 st.metric(
                     "😊 Positive",
-                    int(positive_count)
+                    int(positive)
                 )
 
             with col3:
-
-                st.metric(
-                    "😟 Negative",
-                    int(negative_count)
-                )
-
-            with col4:
 
                 st.metric(
                     "🚨 High Urgency",
                     int(high_urgency)
                 )
 
+            with col4:
+
+                st.metric(
+                    "⭐ Avg Quality",
+                    f"{average_quality:.1f}/100"
+                )
+
 
             # ------------------------------------------------
-            # CHARTS
+            # QUALITY
             # ------------------------------------------------
 
             st.subheader(
-                "📊 Sentiment Distribution"
+                "⭐ Overall Review Quality"
+            )
+
+            st.progress(
+                min(
+                    max(
+                        int(average_quality),
+                        0
+                    ),
+                    100
+                )
+            )
+
+            if average_quality >= 80:
+
+                st.success(
+                    "Excellent customer experience."
+                )
+
+            elif average_quality >= 60:
+
+                st.warning(
+                    "Customer experience is good but has room for improvement."
+                )
+
+            else:
+
+                st.error(
+                    "Customer experience requires significant improvement."
+                )
+
+
+            # ------------------------------------------------
+            # SENTIMENT CHART
+            # ------------------------------------------------
+
+            st.subheader(
+                "😊 Sentiment Distribution"
             )
 
             sentiment_counts = (
-                history["Sentiment"]
+                results["Sentiment"]
                 .value_counts()
             )
 
@@ -751,12 +1163,16 @@ if os.path.exists(CSV_FILE):
             )
 
 
+            # ------------------------------------------------
+            # CATEGORY CHART
+            # ------------------------------------------------
+
             st.subheader(
-                "📂 Review Categories"
+                "📂 Problem Categories"
             )
 
             category_counts = (
-                history["Category"]
+                results["Category"]
                 .value_counts()
             )
 
@@ -766,7 +1182,7 @@ if os.path.exists(CSV_FILE):
 
 
             # ------------------------------------------------
-            # URGENCY
+            # URGENCY CHART
             # ------------------------------------------------
 
             st.subheader(
@@ -774,7 +1190,7 @@ if os.path.exists(CSV_FILE):
             )
 
             urgency_counts = (
-                history["Urgency"]
+                results["Urgency"]
                 .value_counts()
             )
 
@@ -784,54 +1200,291 @@ if os.path.exists(CSV_FILE):
 
 
             # ------------------------------------------------
-            # HISTORY
+            # HIGH PRIORITY REVIEWS
             # ------------------------------------------------
 
             st.subheader(
-                "📚 Review History"
+                "🚨 High-Priority Reviews"
+            )
+
+            high_priority = results[
+                results["Urgency"]
+                .astype(str)
+                .str.lower()
+                .eq("high")
+            ]
+
+            if not high_priority.empty:
+
+                st.dataframe(
+                    high_priority[
+                        [
+                            "Review",
+                            "Sentiment",
+                            "Category",
+                            "Quality Score",
+                            "Main Issue",
+                            "Solution"
+                        ]
+                    ],
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+            else:
+
+                st.success(
+                    "🎉 No high-priority complaints detected."
+                )
+
+
+            # ------------------------------------------------
+            # FULL RESULTS
+            # ------------------------------------------------
+
+            st.subheader(
+                "📋 Complete AI Analysis"
             )
 
             st.dataframe(
-                history,
+                results,
                 use_container_width=True,
                 hide_index=True
             )
 
 
             # ------------------------------------------------
+            # BUSINESS INSIGHTS
+            # ------------------------------------------------
+
+            if "business_insights" in st.session_state:
+
+                insights = st.session_state[
+                    "business_insights"
+                ]
+
+                st.divider()
+
+                st.header(
+                    "🧠 Business Intelligence"
+                )
+
+
+                st.subheader(
+                    "📌 Overall Assessment"
+                )
+
+                st.info(
+                    insights.get(
+                        "overall_assessment",
+                        "No assessment available."
+                    )
+                )
+
+
+                col1, col2 = st.columns(2)
+
+                with col1:
+
+                    st.subheader(
+                        "🔥 Top Problem"
+                    )
+
+                    st.error(
+                        insights.get(
+                            "top_problem",
+                            "Not identified."
+                        )
+                    )
+
+                with col2:
+
+                    st.subheader(
+                        "💪 Top Strength"
+                    )
+
+                    st.success(
+                        insights.get(
+                            "top_strength",
+                            "Not identified."
+                        )
+                    )
+
+
+                st.subheader(
+                    "🎯 Priority Action"
+                )
+
+                st.warning(
+                    insights.get(
+                        "priority_action",
+                        "No priority action available."
+                    )
+                )
+
+
+                st.subheader(
+                    "💡 Recommended Business Actions"
+                )
+
+                recommendations = insights.get(
+                    "recommendations",
+                    []
+                )
+
+                for i, recommendation in enumerate(
+                    recommendations,
+                    start=1
+                ):
+
+                    st.write(
+                        f"**{i}.** {recommendation}"
+                    )
+
+
+            # ------------------------------------------------
             # DOWNLOAD
             # ------------------------------------------------
 
-            csv_data = history.to_csv(
+            st.divider()
+
+            csv_data = results.to_csv(
                 index=False
             )
 
             st.download_button(
-                label="⬇️ Download Review Report",
+                "⬇️ Download Complete AI Review Report",
                 data=csv_data,
-                file_name="review_analysis_report.csv",
+                file_name="AI_review_analysis.csv",
                 mime="text/csv",
                 use_container_width=True
             )
 
+
+# ============================================================
+# TAB 3 - BUSINESS DASHBOARD
+# ============================================================
+
+with tab3:
+
+    st.header(
+        "📊 Business Review Dashboard"
+    )
+
+    if "bulk_results" in st.session_state:
+
+        results = st.session_state[
+            "bulk_results"
+        ]
+
+        if not results.empty:
+
+            average_quality = pd.to_numeric(
+                results["Quality Score"],
+                errors="coerce"
+            ).mean()
+
+            positive_percentage = (
+                results["Sentiment"]
+                .astype(str)
+                .str.lower()
+                .eq("positive")
+                .mean()
+                * 100
+            )
+
+            negative_percentage = (
+                results["Sentiment"]
+                .astype(str)
+                .str.lower()
+                .eq("negative")
+                .mean()
+                * 100
+            )
+
+
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+
+                st.metric(
+                    "⭐ Review Quality",
+                    f"{average_quality:.1f}/100"
+                )
+
+            with col2:
+
+                st.metric(
+                    "😊 Positive Rate",
+                    f"{positive_percentage:.1f}%"
+                )
+
+            with col3:
+
+                st.metric(
+                    "😟 Negative Rate",
+                    f"{negative_percentage:.1f}%"
+                )
+
+
+            st.subheader(
+                "📈 Sentiment"
+            )
+
+            st.bar_chart(
+                results["Sentiment"]
+                .value_counts()
+            )
+
+
+            st.subheader(
+                "📂 Categories"
+            )
+
+            st.bar_chart(
+                results["Category"]
+                .value_counts()
+            )
+
+
+            st.subheader(
+                "🚨 Urgency"
+            )
+
+            st.bar_chart(
+                results["Urgency"]
+                .value_counts()
+            )
+
+
+            st.subheader(
+                "⭐ Quality Score Distribution"
+            )
+
+            quality_data = pd.to_numeric(
+                results["Quality Score"],
+                errors="coerce"
+            )
+
+            st.bar_chart(
+                quality_data
+                .value_counts()
+                .sort_index()
+            )
+
+
         else:
 
             st.info(
-                "No reviews have been analyzed yet."
+                "Upload and analyze reviews first."
             )
 
-    except Exception as e:
+    else:
 
-        st.warning(
-            f"Could not load dashboard data: {e}"
+        st.info(
+            "📁 Go to the 'Upload Reviews' tab and "
+            "analyze your review file to generate the dashboard."
         )
-
-else:
-
-    st.info(
-        "📊 Your dashboard will appear here after "
-        "you analyze your first review."
-    )
 
 
 # ============================================================
@@ -847,7 +1500,7 @@ st.markdown(
 ⭐ <b>AI Review Management Agent</b>
 
 <p>
-Analyze • Understand • Respond • Improve
+Analyze • Understand • Solve • Respond • Improve
 </p>
 
 </div>
